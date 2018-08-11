@@ -4,8 +4,9 @@ var right = document.getElementById('right');
 
 var query = getQueryParams(document.location.search);
 
-var leftSrc = '../../app/oxygen.html?url=' + (query.base + query.left) + '&side=left';
-var rightSrc = '../../app/oxygen.html?url=' + (query.base + query.right) + '&side=right';
+var diffId = Math.random();
+var leftSrc = '../../app/oxygen.html?url=' + (query.base + query.left) + '&side=left&diffId=' + diffId;
+var rightSrc = '../../app/oxygen.html?url=' + (query.base + query.right) + '&side=right&diffId=' + diffId;
 
 for (param in query) {
   if (param !== 'base' && param !== 'left' && param !== 'right') {

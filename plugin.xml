@@ -3,7 +3,7 @@
 <!DOCTYPE plugin SYSTEM "../plugin.dtd">
 
 <plugin
-    class="ro.sync.exml.plugin.Plugin"
+    class="com.oxygenxml.webapp.diff.DiffPlugin"
 
     id="web-author-diff-plugin"
     name="Web Author Diff Plugin"
@@ -18,10 +18,7 @@
   </runtime>
 
   <!-- Add extensions here-->
-
-  <!-- Example extensions: -->
-  <extension type="WebappServlet" class="com.oxygenxml.webapp.diff.SampleWebappServletPluginExtension"/>
-
-  <!-- You can access static files at XML_WEB_AUTHOR/plugin-resources/web-author-diff-plugin/ -->
   <extension type="WebappStaticResourcesFolder" path="web/static/" href="web-author-diff-plugin"/>
+  
+  <extension type="WorkspaceAccess" class="com.oxygenxml.webapp.diff.DiffEditorLinker"/>
 </plugin>
