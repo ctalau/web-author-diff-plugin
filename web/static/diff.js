@@ -15,7 +15,9 @@ for (param in query) {
 }
 
 left.src = leftSrc;
-right.src = rightSrc;
+function loadRightEditor() {
+  right.src = rightSrc;
+}
 
 
 function getQueryParams(qs) {

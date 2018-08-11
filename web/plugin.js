@@ -17,6 +17,14 @@
         var editor = e.editor;
         editor.setReadOnlyState({readOnly: true, code: 'diff'});
       });
+    } else {
+      goog.events.listenOnce(workspace, sync.api.Workspace.EventType.EDITOR_LOADED, function(e) {
+        // The left editor is loaded, so the user is authenticated.
+        // Only now we can start loading the right editor to avoid
+        // having the user login twice.
+        window.parent.loadRightEditor();
+      });
+
     }
   });
 })();
