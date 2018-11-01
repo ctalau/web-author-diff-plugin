@@ -16,9 +16,15 @@
       goog.events.listenOnce(workspace, sync.api.Workspace.EventType.EDITOR_LOADED, function(e) {
         var editor = e.editor;
         editor.setReadOnlyState({readOnly: true, code: 'diff'});
+        editor.getActionsManager().invokeOperation('com.oxygenxml.webapp.diff.CreateDiffHighlightsOperation', {}, 
+        		function() {
+        			window.parent.leftEditor.getActionsManager().invokeOperation(
+					'com.oxygenxml.webapp.diff.ShowDiffHighlightsOperation', {})
+				})
       });
     } else {
       goog.events.listenOnce(workspace, sync.api.Workspace.EventType.EDITOR_LOADED, function(e) {
+    	window.parent.leftEditor = e.editor;
         // The left editor is loaded, so the user is authenticated.
         // Only now we can start loading the right editor to avoid
         // having the user login twice.

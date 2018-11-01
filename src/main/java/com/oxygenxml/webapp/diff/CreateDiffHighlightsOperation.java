@@ -2,7 +2,6 @@ package com.oxygenxml.webapp.diff;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.oxygenxml.webapp.diff.IntervalDescriptor.Type;
 
@@ -14,9 +13,11 @@ import ro.sync.diff.api.DifferencePerformer;
 import ro.sync.ecss.extensions.api.ArgumentDescriptor;
 import ro.sync.ecss.extensions.api.ArgumentsMap;
 import ro.sync.ecss.extensions.api.AuthorAccess;
-import ro.sync.ecss.extensions.api.AuthorOperation;
 import ro.sync.ecss.extensions.api.AuthorOperationException;
 import ro.sync.ecss.extensions.api.access.AuthorEditorAccess;
+import ro.sync.ecss.extensions.api.webapp.AuthorDocumentModel;
+import ro.sync.ecss.extensions.api.webapp.AuthorOperationWithResult;
+import ro.sync.ecss.extensions.api.webapp.WebappRestSafe;
 import ro.sync.exml.workspace.api.PluginWorkspaceProvider;
 
 /**
@@ -25,14 +26,16 @@ import ro.sync.exml.workspace.api.PluginWorkspaceProvider;
  * 
  * @author ctalau
  */
-public class CreateDiffHighlights implements AuthorOperation{
+@WebappRestSafe
+public class CreateDiffHighlightsOperation extends AuthorOperationWithResult {
   
   public String getDescription() {
     return "";
   }
-
-  public void doOperation(AuthorAccess authorAccess, ArgumentsMap args)
+  @Override
+  public String doOperation(AuthorDocumentModel leftModel, ArgumentsMap args)
       throws IllegalArgumentException, AuthorOperationException {
+    AuthorAccess leftAuthorAccess = leftModel.getAuthorAccess();
     DifferencePerformer diffPerformer;
     try {
       diffPerformer = PluginWorkspaceProvider.getPluginWorkspace().getCompareUtilAccess().createDiffPerformer();
@@ -40,10 +43,10 @@ public class CreateDiffHighlights implements AuthorOperation{
       throw new AuthorOperationException("Cannot perform diff", e);
     }
     
-    AuthorEditorAccess leftEditorAccess = authorAccess.getEditorAccess();
-    @SuppressWarnings("unchecked")
-    AuthorEditorAccess rightEditorAccess = ((AtomicReference<AuthorEditorAccess>) leftEditorAccess
-        .getEditingContext().getAttribute(DiffEditorLinker.DIFF_PAIR_EDITOR_ATTR)).get();
+    AuthorEditorAccess leftEditorAccess = leftAuthorAccess.getEditorAccess();
+    AuthorDocumentModel rightDocumentModel = (AuthorDocumentModel) leftEditorAccess
+        .getEditingContext().getAttribute(DiffEditorLinker.DIFF_PAIR_EDITOR_ATTR);
+    AuthorEditorAccess rightEditorAccess = rightDocumentModel.getAuthorAccess().getEditorAccess();; 
     
     List<Difference> diffs;
     try {
@@ -59,12 +62,13 @@ public class CreateDiffHighlights implements AuthorOperation{
       List<IntervalDescriptor> left = new ArrayList<IntervalDescriptor>();
       List<IntervalDescriptor> right = new ArrayList<IntervalDescriptor>();
       
-      for (Difference difference : diffs) {
-        int leftStartOffset = this.toAuthorOffset(difference.getLeftIntervalStart());
-        int leftEndOffset = this.toAuthorOffset(difference.getLeftIntervalStart());
+      for (int i = 0; i < diffs.size(); i++) {
+        Difference difference = diffs.get(i);
+        int leftStartOffset = difference.getLeftIntervalStart();
+        int leftEndOffset = difference.getLeftIntervalEnd();
         
-        int rightStartOffset = this.toAuthorOffset(difference.getRightIntervalStart());
-        int rightEndOffset = this.toAuthorOffset(difference.getRightIntervalStart());
+        int rightStartOffset = difference.getRightIntervalStart();
+        int rightEndOffset = difference.getRightIntervalEnd();
         
         IntervalDescriptor.Type leftType = Type.CHANGED;
         IntervalDescriptor.Type rightType = Type.CHANGED;
@@ -76,25 +80,22 @@ public class CreateDiffHighlights implements AuthorOperation{
           rightType = Type.REMOVED;
         }
         
-        left.add(new IntervalDescriptor(leftStartOffset, leftEndOffset, leftType));
-        right.add(new IntervalDescriptor(rightStartOffset, rightEndOffset, rightType));
+        left.add(new IntervalDescriptor(i, leftStartOffset, leftEndOffset, leftType));
+        right.add(new IntervalDescriptor(i, rightStartOffset, rightEndOffset, rightType));
       }
       
-      Util.renderHighlights(left, leftEditorAccess);
+      Util.renderHighlights(left, leftModel);
       rightEditorAccess.getEditingContext().setAttribute("intervals", right);
     } catch (DiffException e) {
       new AuthorOperationException("Cannot perform diff", e);
     }
-
-  }
-
-  private int toAuthorOffset(int leftIntervalStart) {
-    // TODO: convert text offset to author offset.
-    return 0;
+    
+    return "";
   }
 
   public ArgumentDescriptor[] getArguments() {
     return new ArgumentDescriptor[0];
   }
+
 
 }

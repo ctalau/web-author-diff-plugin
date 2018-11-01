@@ -1,7 +1,6 @@
 package com.oxygenxml.webapp.diff;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -20,10 +19,6 @@ import ro.sync.exml.workspace.api.standalone.StandalonePluginWorkspace;
  */
 public class DiffEditorLinker implements WorkspaceAccessPluginExtension {
   /**
-   * Context attribute to represent the side of the editor.
-   */
-  private static final String DIFF_SIDE_ATTR = "side";
-  /**
    * Context attribute to represent the diff id used to pair editors.
    */
   private static final String DIFF_ID_ATTR = "diff_id";
@@ -33,17 +28,9 @@ public class DiffEditorLinker implements WorkspaceAccessPluginExtension {
   public static final String DIFF_PAIR_EDITOR_ATTR = "diff_pair_editor";
   
   /**
-   * Map from diffId to left editor.
+   * Map from diffId to the first editor that is loaded.
    */
-  private static final Cache<String, AtomicReference<AuthorEditorAccess>> diffIdToLeftEditor = 
-      CacheBuilder.newBuilder()
-        .expireAfterAccess(5, TimeUnit.MINUTES)
-        .weakValues()
-        .build();
-  /**
-   * Map from diffId to right editor.
-   */
-  private static final Cache<String, AtomicReference<AuthorEditorAccess>> diffIdToRightEditor = 
+  private static final Cache<String, AuthorDocumentModel> diffIdToEditor = 
       CacheBuilder.newBuilder()
         .expireAfterAccess(5, TimeUnit.MINUTES)
         .weakValues()
@@ -61,25 +48,27 @@ public class DiffEditorLinker implements WorkspaceAccessPluginExtension {
       public void editingSessionStarted(String sessionId, AuthorDocumentModel doc) {
         final AuthorEditorAccess editorAccess = doc.getAuthorAccess().getEditorAccess();
         
-        String side = (String) editorAccess.getEditingContext().getAttribute(DIFF_SIDE_ATTR);
         String diffId = (String) editorAccess.getEditingContext().getAttribute(DIFF_ID_ATTR);
-        
-        if ("left".equals(side)) {
-          // The left editor loads first and populates the caches.
-          diffIdToLeftEditor.put(diffId, new AtomicReference<AuthorEditorAccess>(editorAccess));
-          AtomicReference<AuthorEditorAccess> rightEditorRef = new AtomicReference<AuthorEditorAccess>();
-          diffIdToRightEditor.put(diffId, rightEditorRef);
-          editorAccess.getEditingContext().setAttribute(DIFF_PAIR_EDITOR_ATTR, rightEditorRef);
-        } else if ("right".equals(side)) {
-          // Right editor loads second and finds the left editor already there.
-          diffIdToRightEditor.getIfPresent(diffId).set(editorAccess);
-          AtomicReference<AuthorEditorAccess> leftEditorRef = diffIdToLeftEditor.getIfPresent(diffId);
-          editorAccess.getEditingContext().setAttribute(DIFF_PAIR_EDITOR_ATTR, leftEditorRef);
-          
-          // And clears the caches.
-          diffIdToLeftEditor.invalidate(diffId);
-          diffIdToRightEditor.invalidate(diffId);
+      
+        // The left editor loads first and populates the caches.
+        AuthorDocumentModel firstEditor = diffIdToEditor.getIfPresent(diffId);
+        if (firstEditor != null) {
+          linkEditors(doc, firstEditor);
+          linkEditors(firstEditor, doc);
+          diffIdToEditor.invalidate(diffId);
+        } else {
+          diffIdToEditor.put(diffId, doc);
         }
+      }
+
+      /**
+       * Links two docs using editing context attributes.
+       * @param doc1 The first doc.
+       * @param doc2 The second doc.
+       */
+      private void linkEditors(AuthorDocumentModel doc1, AuthorDocumentModel doc2) {
+        doc1.getAuthorAccess().getEditorAccess().getEditingContext()
+          .setAttribute(DIFF_PAIR_EDITOR_ATTR, doc2);
       }
     });
   }
